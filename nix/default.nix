@@ -4,10 +4,11 @@
 with pkgs.lib;
 with builtins;
 let
-  request_text = readFile ./request.txt;
+  request_text = builtins.trace (readFile ./request.http) (readFile ./request.http);
+
   request_split = splitString "\n" request_text;
-  body_start_index = lists.findFirstIndex (i: i == "\n") null request_split;
-  headers_text = filter (e: e != "") (
+  body_start_index = lists.findFirstIndex (i: i == "\n" || i == "\r" || i == "") null request_split;
+  headers_text = filter (e: e != "" && e != "\r" && e != "\n") (
     if body_start_index != null then
       lists.drop 1 (lists.take body_start_index request_split)
     else
@@ -22,7 +23,7 @@ let
       map (
         header_text:
         let
-          header_name = elemAt (splitString ": " header_text) 0;
+          header_name = builtins.trace header_text (elemAt (splitString ": " header_text) 0);
           header_value = elemAt (splitString ": " header_text) 1;
         in
         {
@@ -38,5 +39,5 @@ let
 in
 pkgs.writeTextFile {
   name = "http-reply";
-  text = route request;
+  text = route (trace (toJSON request) request);
 }

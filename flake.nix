@@ -27,7 +27,7 @@
           install -Dm755 server.rb $out/server.rb
           makeWrapper $out/server.rb $out/bin/server \
             --prefix PATH : ${pkgs.lib.makeBinPath [ pkgs.netcat pkgs.ruby ]}\
-            --set NIX_HTTP_BUILD_PATH $out
+            --set NIX_HTTP_BUILD_PATH $out\
 
           mkdir -p $out/nix/
           cp -r ./nix/*.nix $out/nix/

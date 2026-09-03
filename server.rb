@@ -3,6 +3,7 @@
 
 PORT = 3000
 BUILD_PATH = ENV.fetch('NIX_HTTP_BUILD_PATH', Dir.pwd)
+DEBUG = ENV.fetch('DEBUG', false)
 
 require 'tempfile'
 require 'tmpdir'
@@ -13,23 +14,26 @@ require 'fileutils'
 # Sequential echo server.
 # It services only one client at a time.
 warn "Starting tcp server on #{PORT}"
-Socket.tcp_server_loop(PORT) do |sock, _client_addrinfo|
+server = TCPServer.new(3000)
+loop do
+  client = server.accept
   current = Dir.pwd
   out = nil
-  req = sock.gets
+  req = client.recvmsg[0]
+  warn req if DEBUG
 
   begin
     Dir.mktmpdir do |dir|
       `cp -r #{BUILD_PATH}/nix/*.nix #{dir}`
       Dir.chdir(dir)
-      File.write('request.txt', req)
-      puts `nix-build default.nix`
+      File.write('request.http', req)
+      puts `nix-build default.nix --show-trace`
       out = File.read('result')
       Dir.chdir(current)
     end
-    sock.puts out
+    client.puts out
   ensure
-    sock.close
+    client.close
     Dir.chdir(current)
   end
 end
