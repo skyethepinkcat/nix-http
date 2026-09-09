@@ -73,18 +73,23 @@ rec {
     }:
     let
       default_headers = {
-        Content-Type = "text/html";
-        Server = "nix";
-        Cache-Control = "public, max-age=3600";
+        content-type = "text/html";
+        server = "nix";
+        cache-control = "public, max-age=3600";
         # TODO Currently keeping a connection alive is not supported, so we need to close every
         # message. Ideally, we should allow keepalive, but this would require implementing session
         # tracking.
-        Connect = "Close";
+        connect = "Close";
       };
-      headers_text = join "\n" (
-        mapAttrsToList (name: value: "${name}: ${value}") (default_headers // headers)
+      combined_headers = concatMapAttrs (name: value: { ${toLower name} = value; }) (
+        default_headers // headers
       );
+      headers_text = join "\n" (mapAttrsToList (name: value: "${name}: ${value}") combined_headers);
     in
+    # Its not possible to get the current time in a nix evaluation (and you shouldn't do it in a
+    # nix derivation). As such, we should be considered a server without a clock, and so we cannot
+    # respond with a date header.
+    assert !hasAttr "date" combined_headers;
     {
       response = ''
         ${protocol} ${toString status.code} ${status.reason}

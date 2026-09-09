@@ -57,6 +57,8 @@ let
 
     path = target.absolutePath;
     type = elemAt request_split 0;
+    # TODO RFC 9110: 6.2, we should send error 505 (HTTP Version Not Supported) for any version
+      # above HTTP/1.1
     protocol = elemAt (splitString " " (elemAt message_split 0)) 2;
 
     # TODO RFC 9112: HTTP/1.1 Section 5.2 requires that we handle obselete line folding. This
@@ -73,7 +75,7 @@ let
 
           # We use map here to make sure each character becomes a space
           replacements = map (_: " ") invalid_characters;
-          header_split = match "^([[:alnum:]!#$%&'*+\-.^_`|~]+): ?(.*)$" header_text;
+          header_split = match "^([[:alnum:]!#$%&'*+\-.^_`|~]+):[[:space:]]*(.*)[[:space:]]*$" header_text;
           header_name = elemAt header_split 0;
 
           header_value = replaceStrings invalid_characters replacements (elemAt header_split 1);
