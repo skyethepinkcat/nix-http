@@ -1,6 +1,5 @@
 {
   pkgs ? import <nixpkgs> { },
-  helpers ? import ./helpers.nix { inherit pkgs; },
 }:
 rec {
   /*
@@ -22,7 +21,6 @@ rec {
   */
   orNull = cond: e: if cond then e else null;
 
-  #
   /*
     This function returns null if elem is null, otherwise continues to evaluate.
 
@@ -42,10 +40,25 @@ rec {
   */
   unlessNull = e: continue: if e == null then null else continue;
 
+  /*
+    This function turns a comma seperated string into a list. Noteably, it handles ignoring whitespace.
+
+    # Type
+    ```
+    commaSeperatedToList :: String -> [String]
+    ```
+
+    # Arguments
+
+    comma_seperated
+    : The string that contains a comma seperated list.
+  */
   commaSeperatedToList =
-    e:
-    assert (isString e);
+    with builtins;
+    comma_seperated:
+    assert (isString comma_seperated);
     filter isString (split ",[[:space:]]?");
+
   buildReply =
     with builtins;
     with pkgs.lib;
@@ -56,22 +69,28 @@ rec {
         code = 200;
         reason = "OK";
       },
-      headers ? {
+      headers ? { },
+    }:
+    let
+      default_headers = {
         Content-Type = "text/html";
         Server = "nix";
         Cache-Control = "public, max-age=3600";
-      },
-    }:
-    let
-      headers_text = join "\n" (mapAttrsToList (name: value: "${name}: ${value}") headers);
+        # TODO Currently keeping a connection alive is not supported, so we need to close every
+        # message. Ideally, we should allow keepalive, but this would require implementing session
+        # tracking.
+        Connect = "Close";
+      };
+      headers_text = join "\n" (
+        mapAttrsToList (name: value: "${name}: ${value}") (default_headers // headers)
+      );
     in
     {
       response = ''
         ${protocol} ${toString status.code} ${status.reason}
         ${headers_text}
 
-        ${body}
-      '';
+        ${body}'';
     };
 
   # Returns a derivation containing the response message as the file "response".
@@ -98,11 +117,11 @@ rec {
     };
   errorReply =
     code: reason:
-    mkReply buildReply {
+    mkReply (buildReply {
       status = {
         inherit code;
         inherit reason;
 
       };
-    };
+    });
 }

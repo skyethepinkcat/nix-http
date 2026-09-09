@@ -1,18 +1,15 @@
+# Request_path is outside of the attrset argument to avoid
 {
-  pkgs ? import <nixpkgs> {
-    overlays = [
-      (final: prev: {
-        lib.http = import ./lib/httplib.nix { pkgs = prev; };
-      })
-    ];
-  },
+  pkgs ? import <nixpkgs> { },
+  http ? import ./lib/httplib.nix { inherit pkgs; },
+  request_path,
 }:
 with pkgs.lib;
 with builtins;
 let
   dropFirstCharacter = string: (substring 1 (-1) string);
 
-  message_text = readFile ./request.http;
+  message_text = readFile request_path;
 
   message_split = splitString "\n" message_text;
   body_start_index = lists.findFirstIndex (i: i == "\n" || i == "\r" || i == "") null message_split;
@@ -32,7 +29,6 @@ let
       # queries (prefixed with ?) and the third being the fragment (prefixed with #).
       # If the queries or fragment don't exist, they will instead be null.
       path_components = match ''^([[:alnum:]_\-./]+)(\?[[:alnum:]_\-.\/]+)?(#[[:alnum:]\\-.\\/]+)?$'' path_string;
-
     in
     {
       absolutePath = elemAt path_components 0;
@@ -46,18 +42,20 @@ let
           component = elemAt path_components 2;
         in
         http.unlessNull component (dropFirstCharacter component);
+
     };
 
   attrNameHasTrailingWhiteSpace =
-    attr: any (map (a: !isNull (match "[[:space:]]" (last (stringToCharacters a)))) (attrNames attr));
+    attr: any (a: !isNull (match "[[:space:]]" (last (stringToCharacters a)))) (attrNames attr);
 
   request_split = splitString " " (elemAt message_split 0);
 
   target = parseTarget (elemAt request_split 1);
 
   message = {
-    inherit (target) queries path fragment;
+    inherit (target) queries fragment;
 
+    path = target.absolutePath;
     type = elemAt request_split 0;
     protocol = elemAt (splitString " " (elemAt message_split 0)) 2;
 
@@ -67,8 +65,10 @@ let
       map (
         header_text:
         let
-          header_split = match "^(.*): ?(.*)$" header_text;
+          header_split = match "^([^:]*): ?(.*)$" header_text;
           header_name = elemAt header_split 0;
+          # TODO Field values with "CR, LF, or NUL characters" cause the message to be rejected or
+          # sanitized by replacing them with a space according to RFC 9110: HTTP section 5.5
           header_value = elemAt header_split 1;
         in
         {
@@ -82,9 +82,10 @@ let
     body =
       if body_start_index == null then null else (join "\n" (lists.drop body_start_index message_split));
   };
-  route = import ./route.nix { inherit pkgs; };
+  route = import ./route.nix { inherit pkgs http; };
 
   reply = route message;
+
 in
 if
   length request_split != 3
@@ -122,6 +123,7 @@ else
 */
 
 if hasAttr "transfer-encoding" message.headers then
+
   http.errorReply 501 "Not Implemented"
 else
-  httplib.mkReply reply
+  http.mkReply reply

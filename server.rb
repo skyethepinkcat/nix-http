@@ -16,24 +16,19 @@ require 'fileutils'
 warn "Starting tcp server on #{PORT}"
 server = TCPServer.new(3000)
 loop do
+  out = ''
   client = server.accept
-  current = Dir.pwd
-  out = nil
   req = client.recvmsg[0]
+  rand 1..100_000_000
   warn req if DEBUG
 
-  begin
-    Dir.mktmpdir do |dir|
-      `cp -r #{BUILD_PATH}/nix/*.nix #{dir}`
-      Dir.chdir(dir)
-      File.write('request.http', req)
-      puts `nix-build default.nix --show-trace`
-      out = File.read('result')
-      Dir.chdir(current)
-    end
-    client.puts out
-  ensure
-    client.close
-    Dir.chdir(current)
+  Tempfile.create do |f|
+    f.puts(req)
+    f.rewind
+    path = `nix-build #{__dir__}/nix/default.nix --arg request_path "#{f.path}" --no-out-link --show-trace`.chomp
+    out = File.read("#{path}/response")
   end
+
+  client.puts out
+  client.close
 end

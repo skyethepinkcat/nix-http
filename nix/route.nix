@@ -1,13 +1,14 @@
 {
   pkgs ? import <nixpkgs> { },
+  http ? import ./lib/httplib.nix { inherit pkgs; },
 }:
-request: state_in:
+request:
 with builtins;
 with pkgs.lib;
 let
   routes = {
     "GET" = {
-      "/" = mkReply {
+      "/" = http.buildReply {
         body = ''
           <html>
           <head>
@@ -19,7 +20,7 @@ let
           </head>
         '';
       };
-      "/bounce" = mkReply {
+      "/bounce" = http.buildReply {
         body = toJSON request;
         headers = {
           Content-Type = "application/json";
@@ -31,7 +32,7 @@ let
     };
   };
 in
-routes.${request.type}.${request.path} or (mkReply {
+routes.${request.type}.${request.path} or (http.buildReply {
   status = {
     code = 404;
     reason = "Not Found";
@@ -44,6 +45,5 @@ routes.${request.type}.${request.path} or (mkReply {
     <body>
     <h1> 404 Not Found </h1>
     </body>
-    </head>
-  '';
+    </head>'';
 })
