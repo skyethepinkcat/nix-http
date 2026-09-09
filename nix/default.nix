@@ -65,11 +65,18 @@ let
       map (
         header_text:
         let
-          header_split = match "^([^:]*): ?(.*)$" header_text;
+          invalid_characters = [
+            "\n" # LF
+            "\r" # CR
+            "�" # NUL, I don't think there's any nice way to represent the null character, so I had to resort to this.
+          ];
+
+          # We use map here to make sure each character becomes a space
+          replacements = map (_: " ") invalid_characters;
+          header_split = match "^([[:alnum:]!#$%&'*+\-.^_`|~]+): ?(.*)$" header_text;
           header_name = elemAt header_split 0;
-          # TODO Field values with "CR, LF, or NUL characters" cause the message to be rejected or
-          # sanitized by replacing them with a space according to RFC 9110: HTTP section 5.5
-          header_value = elemAt header_split 1;
+
+          header_value = replaceStrings invalid_characters replacements (elemAt header_split 1);
         in
         {
           # According to RFC 9110: HTTP section 5.1, headers are case-insensitive, so we'll downcase
