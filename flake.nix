@@ -2,7 +2,7 @@
   description = "A very basic flake";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs?ref=nixos-unstable";
+    nixpkgs.url = "https://channels.nixos.org/nixos-unstable/nixexprs.tar.zst";
   };
 
   outputs = inputs: {
@@ -30,7 +30,7 @@
             --set NIX_HTTP_BUILD_PATH $out\
 
           mkdir -p $out/nix/
-          cp -r ./nix/*.nix $out/nix/
+          cp -r ./nix/* $out/nix/
 
           runHook  postInstall
         '';
