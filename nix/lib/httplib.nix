@@ -166,4 +166,11 @@ rec {
         inherit reason;
       };
     });
+  replyWith = file: {
+    status = {
+      code = 200;
+      reason = "OK";
+    };
+
+  } ;
 }
