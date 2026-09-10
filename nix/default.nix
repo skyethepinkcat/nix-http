@@ -28,7 +28,7 @@ let
       # Here we create a 3 element array with the first being the absolute path, the second being
       # queries (prefixed with ?) and the third being the fragment (prefixed with #).
       # If the queries or fragment don't exist, they will instead be null.
-      path_components = match ''^([[:alnum:]_\-./]+)(\?[[:alnum:]_\-.\/]+)?(#[[:alnum:]\\-.\\/]+)?$'' path_string;
+      path_components = match ''^([[:alnum:]_\./-]+)(\?[[:alnum:]_\\.\\/-]+)?(#[[:alnum:]\\.\\/-]+)?$'' path_string;
     in
     {
       absolutePath = elemAt path_components 0;
@@ -95,7 +95,7 @@ let
     inherit pkgs http;
     request = message;
   };
-
+  maybeReply = tryEval (http.mkReply reply);
 in
 if
   length request_split != 3
@@ -136,4 +136,4 @@ if hasAttr "transfer-encoding" message.headers then
 
   http.errorReply 501 "Not Implemented"
 else
-  http.mkReply reply
+  if maybeReply.success then maybeReply.value else http.errorReply 500 "Internal Server Error"

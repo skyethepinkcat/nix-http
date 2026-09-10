@@ -26,9 +26,10 @@ loop do
     f.puts(req)
     f.rewind
     path = `nix-build #{__dir__}/nix/default.nix --arg request_path "#{f.path}" --no-out-link --show-trace`.chomp
-    out = File.read("#{path}/response")
+    out = File.read("#{path}/response") if File.exist?("#{path}/response")
   end
 
+  warn 'Done!' if DEBUG
   client.puts out
   client.close
 end
