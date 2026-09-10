@@ -1,7 +1,48 @@
 {
   pkgs ? import <nixpkgs> { },
 }:
+with builtins;
+with pkgs.lib;
 rec {
+  # Contains various regex expressions that might be too complicated to inline.
+  # None of these include capture groups, as they're intended to be used in larger regex
+  # expressions.
+  regex = {
+    # Matches a token in HTTP.
+    token = "[[:alnum:]!#$%&'*+.^_`|~-]+";
+  };
+
+  /*
+    This function returns a copy of string with backslashes escaped.
+
+    # Type
+
+    ```
+    handleBackslash :: String -> String
+    ```
+
+    # Arguments
+    str
+    : The string to be parsed.
+  */
+  handleBackslash = str: join "" (flatten (split ''\\(.)'' str));
+
+  /*
+    This function returns a copy of the contents of a double quoted string. Backslashes are correctly
+    handled.
+
+    # Type
+
+    ```
+    readQuote :: String -> String
+    ```
+
+    # Arguments
+    str
+    : The string to be parsed.
+  */
+  readQuote = str: handleBackslash (elemAt (match ''"(([^"]|\\")*)"'' str) 0);
+
   /*
     This function returns a given element if a condition is true, otherwise returns null.
 
@@ -54,13 +95,11 @@ rec {
     : The string that contains a comma seperated list.
   */
   commaSeperatedToList =
-    with builtins;
     comma_seperated:
     assert (isString comma_seperated);
     filter isString (split ",[[:space:]]?");
 
   buildReply =
-    with builtins;
     with pkgs.lib;
     {
       protocol ? "HTTP/1.1",
@@ -100,9 +139,8 @@ rec {
 
   # Returns a derivation containing the response message as the file "response".
   mkReply =
-    with builtins;
     reply:
-    pkgs.stdenv.mkDerivation {
+    (pkgs.stdenv.mkDerivation {
       name = "http-reply";
       src = pkgs.emptyDirectory;
       dontBuild = true;
@@ -119,14 +157,13 @@ rec {
         runHook postInstall
       '';
 
-    };
+    });
   errorReply =
     code: reason:
     mkReply (buildReply {
       status = {
         inherit code;
         inherit reason;
-
       };
     });
 }
